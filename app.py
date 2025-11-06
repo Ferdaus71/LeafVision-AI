@@ -1,3 +1,6 @@
+import os
+os.environ["OPENCV_VIDEOIO_PRIORITY_MSMF"] = "0"  # Fix camera issue on Streamlit Cloud
+
 import streamlit as st
 import tensorflow as tf
 import numpy as np
@@ -48,28 +51,16 @@ def add_label_to_image(image, label, conf):
                 cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 100), 2)
     return img
 
-# ---------------- UI CONFIG ----------------
-st.set_page_config(page_title="🌿 LeafVision AI", page_icon="🍃", layout="wide")
+# ---------------- STREAMLIT PAGE CONFIG ----------------
+st.set_page_config(page_title="🍃 LeafVision AI", page_icon="🌿", layout="wide")
 
-# ---------------- ANIMATED BACKGROUND ----------------
+# ---------------- CUSTOM CSS ----------------
 st.markdown("""
 <style>
 body {
-    margin: 0;
-    overflow: hidden;
     background-color: #001b12;
     color: #d9f7e8;
     font-family: 'Poppins', sans-serif;
-}
-
-canvas#leafCanvas {
-    position: fixed;
-    top: 0; left: 0;
-    z-index: -1;
-}
-
-h1, h2, h3, h5, p {
-    text-align: center;
 }
 
 .card {
@@ -124,61 +115,15 @@ h1, h2, h3, h5, p {
     transform: scale(1.3);
 }
 </style>
-
-<canvas id="leafCanvas"></canvas>
-<script>
-const canvas = document.getElementById('leafCanvas');
-const ctx = canvas.getContext('2d');
-canvas.width = window.innerWidth;
-canvas.height = window.innerHeight;
-
-const leaves = [];
-const leafCount = 30;
-for (let i = 0; i < leafCount; i++) {
-    leaves.push({
-        x: Math.random() * canvas.width,
-        y: Math.random() * canvas.height,
-        size: 20 + Math.random() * 20,
-        speed: 0.5 + Math.random(),
-        drift: (Math.random() - 0.5) * 1.5,
-        opacity: 0.4 + Math.random() * 0.6
-    });
-}
-
-function drawLeaf(l) {
-    ctx.beginPath();
-    ctx.ellipse(l.x, l.y, l.size/2, l.size/3, Math.PI/4, 0, 2*Math.PI);
-    ctx.fillStyle = `rgba(0,255,100,${l.opacity})`;
-    ctx.fill();
-}
-
-function animate() {
-    ctx.clearRect(0,0,canvas.width,canvas.height);
-    leaves.forEach(l => {
-        drawLeaf(l);
-        l.y += l.speed;
-        l.x += l.drift;
-        if (l.y > canvas.height) l.y = -20;
-        if (l.x > canvas.width || l.x < 0) l.x = Math.random() * canvas.width;
-    });
-    requestAnimationFrame(animate);
-}
-animate();
-
-window.addEventListener('resize', () => {
-    canvas.width = window.innerWidth;
-    canvas.height = window.innerHeight;
-});
-</script>
 """, unsafe_allow_html=True)
 
 # ---------------- HEADER ----------------
-st.markdown("<h1>🍃 LeafVision AI</h1>", unsafe_allow_html=True)
-st.markdown("<p>🌿 Identify tree species instantly using AI and your camera!</p>", unsafe_allow_html=True)
+st.markdown("<h1 style='text-align:center;'>🍃 LeafVision AI</h1>", unsafe_allow_html=True)
+st.markdown("<p style='text-align:center;'>🌿 Real-Time Tree Leaf Identification using AI</p>", unsafe_allow_html=True)
 
 # ---------------- MAIN CARD ----------------
 st.markdown("<div class='card'>", unsafe_allow_html=True)
-mode = st.radio("Choose Mode:", ["📁 Upload Image", "📷 Live Webcam"])
+mode = st.radio("Select Mode:", ["📁 Upload Image", "📷 Live Webcam"])
 
 # ---------------- UPLOAD MODE ----------------
 if mode == "📁 Upload Image":
@@ -206,49 +151,39 @@ if mode == "📁 Upload Image":
             mime="image/png",
         )
 
-# ---------------- LIVE MODE ----------------
+# ---------------- LIVE WEBCAM MODE ----------------
 elif mode == "📷 Live Webcam":
+    st.info("⚠️ Webcam mode requires a local environment. Streamlit Cloud does not support live camera access.")
+    st.write("If you’re running locally, uncomment the code below to use live detection.")
+
+    # For local use, uncomment the block below:
+    """
     run = st.checkbox("Start Camera 🎥")
     FRAME_WINDOW = st.image([])
     cap = None
-    capture_img = None
 
     if run:
         cap = cv2.VideoCapture(0)
         if not cap.isOpened():
-            st.error("❌ Webcam not available.")
+            st.error("❌ Webcam not found.")
         else:
-            st.info("✅ Webcam active. Uncheck to stop.")
+            st.info("✅ Camera Active")
 
     while run and cap and cap.isOpened():
         ret, frame = cap.read()
         if not ret:
             st.warning("⚠️ Frame not captured.")
             break
-
         label, conf, _ = predict(frame)
         frame_labeled = add_label_to_image(frame, label, conf)
         FRAME_WINDOW.image(cv2.cvtColor(frame_labeled, cv2.COLOR_BGR2RGB),
                            channels="RGB", use_container_width=True)
-        capture_img = frame_labeled
         time.sleep(0.1)
 
     if cap and cap.isOpened():
         cap.release()
         cv2.destroyAllWindows()
-        st.success("Camera stopped.")
-
-    if capture_img is not None:
-        img_pil = Image.fromarray(cv2.cvtColor(capture_img, cv2.COLOR_BGR2RGB))
-        buf = io.BytesIO()
-        img_pil.save(buf, format="PNG")
-        byte_img = buf.getvalue()
-        st.download_button(
-            label="📸 Download Captured Result",
-            data=byte_img,
-            file_name="leafvision_result.png",
-            mime="image/png",
-        )
+    """
 
 st.markdown("</div>", unsafe_allow_html=True)
 
